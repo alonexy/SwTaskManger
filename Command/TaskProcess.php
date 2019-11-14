@@ -86,6 +86,11 @@ class TaskProcess extends Command
     }
 
     public function Start($input, $output){
+        $pid = ServerHelper::getPid($this->pidFilePath);
+        if($pid >1 ){
+            $output->writeln("<error>{$this->name}  is  Running.</error>");
+            return false;
+        }
         $workerNum = $input->getArgument('worknum');
         $daemonize = $input->getOption('daemonize');
         var_dump($workerNum,$daemonize);
@@ -178,7 +183,7 @@ class TaskProcess extends Command
     {
         $pid = ServerHelper::getPid($this->pidFilePath);
         if ($pid < 1) {
-            $output->writeln("<error>Http Server is Not Running.</error>");
+            $output->writeln("<error>{$this->name}is Not Running.</error>");
             return false;
         }
         if (!ServerHelper::isRunning($pid)) {

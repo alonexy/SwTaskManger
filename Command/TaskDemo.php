@@ -10,6 +10,7 @@ namespace Command;
 
 
 use Helpers\ServerHelper;
+use Services\ForexOhlc;
 use Swoole\Coroutine;
 use Swoole\Process;
 use Symfony\Component\Console\Command\Command;
@@ -86,6 +87,11 @@ class TaskDemo extends Command
     }
 
     public function Start($input, $output){
+        $pid = ServerHelper::getPid($this->pidFilePath);
+        if($pid >1 ){
+            $output->writeln("<error>{$this->name}  is Running.</error>");
+            return false;
+        }
         $workerNum = $input->getArgument('worknum');
         $daemonize = $input->getOption('daemonize');
         var_dump($workerNum,$daemonize);
@@ -98,7 +104,10 @@ class TaskDemo extends Command
 
         $pool->on("WorkerStart", function ($pool, $workerId)
         {
+            //TODO *
             echo "Worker#{$workerId} is started\n";
+            $service = new ForexOhlc();
+            $service->aaa();
             sleep(10);
         });
 
@@ -178,7 +187,7 @@ class TaskDemo extends Command
     {
         $pid = ServerHelper::getPid($this->pidFilePath);
         if ($pid < 1) {
-            $output->writeln("<error>Http Server is Not Running.</error>");
+            $output->writeln("<error>{$this->name}  is Not Running.</error>");
             return false;
         }
         if (!ServerHelper::isRunning($pid)) {

@@ -6,5 +6,4 @@
 
 ```
 php bin/Console.php list
-
 ```
