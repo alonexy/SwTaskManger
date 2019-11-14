@@ -113,8 +113,8 @@ class TaskProcess extends Command
         });
         if(!empty($daemonize)){
             Process::daemon(true,false);
+            $this->saveMasterPidToFile();
         }
-        $this->saveMasterPidToFile();
         $pool->start();
     }
 
@@ -162,7 +162,8 @@ class TaskProcess extends Command
             return false;
         }
         if (!ServerHelper::isRunning($pid)) {
-            return $output->writeln("<error>{$this->name} is Not Running. </error>");
+            $output->writeln("<error>{$this->name} is Not Running. </error>");
+            return ServerHelper::removePidFile($this->pidFilePath);
         }
         // SIGTERM = 15
         if (ServerHelper::killAndWait($pid, SIGTERM)) {
