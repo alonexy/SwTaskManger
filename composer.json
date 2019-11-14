@@ -1,0 +1,30 @@
+{
+    "name": "alonexy/sw_task",
+    "authors": [
+        {
+            "name": "alonexy",
+            "email": "hpl1124@126.com"
+        }
+    ],
+    "require": {
+        "symfony/console": "^4.3",
+        "predis/predis": "^1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Command\\":"Command",
+            "Helpers\\":"Helpers"
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "composer dump-autoload -o"
+        ],
+        "post-update-cmd":[
+            "composer dump-autoload -o"
+        ]
+    },
+    "config": {
+        "preferred-install": "dist"
+    }
+}
