@@ -9,7 +9,8 @@
     "require": {
         "symfony/console": "^4.3",
         "predis/predis": "^1.1",
-        "monolog/monolog": "^1.25"
+        "monolog/monolog": "^1.25",
+        "nesbot/carbon": "^2.16"
     },
     "autoload": {
         "psr-4": {

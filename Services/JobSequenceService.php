@@ -138,6 +138,7 @@ class JobSequenceService
             return true;
         }
         $MsgLists = $this->redis->hmget($hash_order_key, $reqIds);
+        var_dump($this->HandleFunc);
         if (is_null($this->HandleFunc)) {
             throw new \Exception("SetHandleFun is nil");
         }
