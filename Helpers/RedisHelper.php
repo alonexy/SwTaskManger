@@ -27,12 +27,13 @@ class RedisHelper
     {
         $redisConfs = $this->ck;
         $options    = [
-            'parameters' => [
-                'password' => $redisConfs['auth'],
-                'database' => $redisConfs['db_set'],
-            ],
+            "scheme" => "tcp",
+            "host" => $redisConfs['host'],
+            "port" => $redisConfs['port'],
+            'password' => $redisConfs['auth'],
+            'database' => $redisConfs['db_set'],
         ];
-        return new Client(["tcp://{$redisConfs['host']}:{$redisConfs['port']}"], $options);
+        return new Client($options);
     }
 
     static public function connections($conf)
