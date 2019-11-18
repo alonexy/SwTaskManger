@@ -10,7 +10,9 @@
         "symfony/console": "^4.3",
         "predis/predis": "^1.1",
         "monolog/monolog": "^1.25",
-        "nesbot/carbon": "^2.16"
+        "nesbot/carbon": "^2.26",
+        "vlucas/phpdotenv": "^2.4",
+        "mongodb/mongodb": "^1.5"
     },
     "autoload": {
         "psr-4": {

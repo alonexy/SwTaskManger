@@ -2,5 +2,6 @@
 *.xml
 *.pid
 *.log
+.env
 composer.lock
 /vendor/

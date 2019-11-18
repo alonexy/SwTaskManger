@@ -4,30 +4,33 @@ namespace Services;
 
 class JobSequenceService
 {
-    public  $prifix;
+    public $prifix;
     private $redis;
-    private static $_instance ;
+    private static $_instance;
+    private $size;
 
-    private function __construct($redis)
+    private function __construct($redis, $size)
     {
         $this->redis  = $redis;
         $this->prifix = 'job_sequence:';
-
+        $this->size   = $size;
     }
-    public static function getInstance($redis)
+
+    public static function getInstance($redis, $size)
     {
-        if(self::$_instance instanceof self)
-        {
+        if (self::$_instance instanceof self) {
             return self::$_instance;
         }
-        return self::$_instance = new  self($redis);
+        return self::$_instance = new  self($redis, $size);
     }
 
     private $HandleFunc = null;
-    public function CacheData($key,$data)
+
+    public function CacheData($key, $data)
     {
-        $this->redis->set($key,$data);
+        $this->redis->set($key, $data);
     }
+
     /**
      * 数据分组顺序拼接数据
      * @param array $jobData 任务数组数据
@@ -47,7 +50,7 @@ class JobSequenceService
                 $unqiueArrs[] = $jobData[$gk];
             }
             $message_key    = implode('_', $unqiueArrs);
-            $hash_order_key = $this->prifix."{$jobName}:{$message_key}";
+            $hash_order_key = $this->prifix . "{$jobName}:{$message_key}";
             $res            = $this->addJobData($hash_order_key, $reqId, $jobData, $score);
             return [true, $message_key];
         }
@@ -78,21 +81,22 @@ class JobSequenceService
         });
         return $this->redis->zcard($hash_order_key . '_s');
     }
-    public function zpop($key,$num=1)
+
+    public function zpop($key, $num = 1)
     {
         $options = array(
             'cas' => true,
             'retry' => 2,
         );
-        $limit  = max(0,($num-1));
-        $arr = [];
+        $limit   = max(0, ($num - 1));
+        $arr     = [];
         $this->redis->transaction(
-            $options, function ($tx) use ($key,&$arr,$limit) {
+            $options, function ($tx) use ($key, &$arr, $limit) {
             $tx->multi();   // With CAS, MULTI *must* be explicitly invoked.
-            $arr = $tx->zrange($key,0,$limit);
+            $arr = $tx->zrange($key, 0, $limit);
 
-            if(!empty($arr)){
-                $tx->zrem($key,$arr);
+            if (!empty($arr)) {
+                $tx->zrem($key, $arr);
             }
         });
         return $arr;
@@ -131,20 +135,19 @@ class JobSequenceService
      */
     public function GroupDatasHandle($jobName, $messageKey)
     {
-        $hash_order_key = $this->prifix."{$jobName}:{$messageKey}";
+        $hash_order_key = $this->prifix . "{$jobName}:{$messageKey}";
 
-        $reqIds = $this->redis->zrange($hash_order_key . '_s', 0, 999); //每次消耗1000条
+        $reqIds = $this->redis->zrange($hash_order_key . '_s', 0, $this->size); //每次消耗*条
         if (empty($reqIds)) {
             return true;
         }
         $MsgLists = $this->redis->hmget($hash_order_key, $reqIds);
-        var_dump($this->HandleFunc);
         if (is_null($this->HandleFunc)) {
             throw new \Exception("SetHandleFun is nil");
         }
         foreach ($MsgLists as $k => $val) {
             try {
-                $this->lockDelayed($jobName, $messageKey,2); //延长2s 防止处理时间过长导致锁超时
+                $this->lockDelayed($jobName, $messageKey, 2); //延长2s 防止处理时间过长导致锁超时
                 call_user_func_array($this->HandleFunc, array(&$val));
             }
             catch (\Exception $e) {
@@ -163,14 +166,14 @@ class JobSequenceService
      */
     public function getJobGroupKeys($jobName)
     {
-        $keys        = "$jobName:*";
-        $ks          = $this->redis->keys($this->prifix.$keys);
+        $keys = "$jobName:*";
+        $ks   = $this->redis->keys($this->prifix . $keys);
 
         $msssageKeys = [];
         foreach ($ks as $k) {
-            preg_match_all('/' . $this->prifix.$jobName . ':(.*)_s/', $k, $ma);
+            preg_match_all('/' . $this->prifix . $jobName . ':(.*)_s/', $k, $ma);
             if (isset($ma[1][0])) {
-                $mKey = $ma[1][0];
+                $mKey          = $ma[1][0];
                 $msssageKeys[] = $mKey;
             }
         }
@@ -185,7 +188,7 @@ class JobSequenceService
      */
     public function is_lock($jobName, $messageKey)
     {
-        return $this->redis->get($this->prifix."{$jobName}:lock:{$messageKey}");
+        return $this->redis->get($this->prifix . "{$jobName}:lock:{$messageKey}");
     }
 
     /**
@@ -194,16 +197,14 @@ class JobSequenceService
      * @param $messageKey
      * @return mixed
      */
-    public function lock($jobName, $messageKey,$expTime=30000)
+    public function lock($jobName, $messageKey, $expTime = 30000)
     {
-        $key = $this->prifix."{$jobName}:lock:{$messageKey}";
-        $isLock = $this->redis->setnx($key,time()+$expTime);
-        if($isLock)
-        {
+        $key    = $this->prifix . "{$jobName}:lock:{$messageKey}";
+        $isLock = $this->redis->setnx($key, time() + $expTime);
+        if ($isLock) {
             return true;
         }
-        else
-        {
+        else {
 //            //加锁失败的情况下。判断锁是否已经存在，如果锁存在切已经过期，那么删除锁。进行重新加锁
 //            $val = $this->redis->get($key);
 //            if($val&&$val<time())
@@ -214,12 +215,14 @@ class JobSequenceService
             return false; //靠进程解锁
         }
     }
+
     //延长锁时间
-    public function lockDelayed($jobName, $messageKey,$expTime=3000)
+    public function lockDelayed($jobName, $messageKey, $expTime = 3000)
     {
-        $key = $this->prifix."{$jobName}:lock:{$messageKey}";
-        return $this->redis->set($key,time()+$expTime);
+        $key = $this->prifix . "{$jobName}:lock:{$messageKey}";
+        return $this->redis->set($key, time() + $expTime);
     }
+
     /**
      * 处理完成后删除 锁
      * @param $jobName
@@ -228,7 +231,7 @@ class JobSequenceService
      */
     public function unlock($jobName, $messageKey)
     {
-         return $this->redis->del([$this->prifix."{$jobName}:lock:{$messageKey}"]);
+        return $this->redis->del([$this->prifix . "{$jobName}:lock:{$messageKey}"]);
     }
 
     /**
@@ -238,8 +241,10 @@ class JobSequenceService
     public function getReqId()
     {
         $date = date('Y-m-d');
-        return $this->redis->incr($this->prifix."job_req_id:{$date}") . '_' . Functions::uuids();
+        return $this->redis->incr($this->prifix . "job_req_id:{$date}") . '_' . Functions::uuids();
     }
-    private function __clone(){}
-    private function __wakeup(){}
+
+    private function __clone() { }
+
+    private function __wakeup() { }
 }
