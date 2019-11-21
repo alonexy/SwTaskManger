@@ -19,6 +19,7 @@ class ForexOhlc
     protected $redis;
     protected $mongo;
     protected $JobSequenceService;
+    protected $BlackHoleService;
     protected $JobName = "Lz";
 
     public function __construct()
@@ -28,6 +29,7 @@ class ForexOhlc
         $this->log   = new Logger("ForexOhlc");
         $this->log->pushHandler(new StreamHandler(__DIR__ . '/../logs/ForexOhlc.log', Logger::DEBUG));
         $this->JobSequenceService = JobSequenceService::getInstance($this->redis, 1);
+        $this->BlackHoleService = new BlackHoleService();
     }
 
     public function getRedisConf()
@@ -72,6 +74,9 @@ class ForexOhlc
                                                 list($TickRes, $TicketKey) = $this->GetMongoCollectionName($tickData['symbol'], 'tick');
                                                 if (!$TickRes) {
                                                     throw new \Exception("获取ticket mogoCollection失败 {$TicketKey}");
+                                                }
+                                                if($tickData['symbol'] == "XAUUSD"){
+                                                       $this->BlackHoleService->pubData("public:{$tickData['symbol']}_tick",$tickData);
                                                 }
                                                 $this->SaveDataToMogo($TicketKey, $tickData);
                                             });
@@ -264,6 +269,7 @@ class ForexOhlc
         $ThisKey            = $this->getCacheKey($m, $TicketDate);
         $OhlcData['ctm']    = (int)Carbon::parse($ThisKey)->getTimestamp();
         $OhlcData['ctmfmt'] = (string)$ThisKey;
+        $OhlcData['volume'] = 0;
         //存在 当前的key
         list($res, $LocalOhlcData) = $this->ExitsDataToMogo($HashKey, $OhlcData['ctm']);
         if ($res) {
@@ -278,6 +284,9 @@ class ForexOhlc
             $OhlcData['high']  = (double)$Price;
             $OhlcData['low']   = (double)$Price;
             $OhlcData['close'] = (double)$Price;
+        }
+        if($TicketSymbol == "XAUUSD"){
+            $this->BlackHoleService->pubData("public:{$TicketSymbol}_{$m}",$OhlcData);
         }
         $this->SaveDataToMogo($HashKey, $OhlcData);
     }
@@ -296,12 +305,12 @@ class ForexOhlc
     {
         if ($cycle == 'tick') {
             $date = date('Y-m-d');
-            return [true, strtolower("Tick_{$symbol}_ticket_{$date}")];
+            return [true, "Tick_{$symbol}_ticket_{$date}"];
         }
         if (!in_array($cycle, $this->getCycles())) {
             return [false, '周期值错误'];
         }
-        return [true, strtolower("Kline_{$symbol}_{$cycle}{$stamp}")];
+        return [true, "Kline_{$symbol}_{$cycle}_{$stamp}"];
     }
 
     public function SaveDataToMogo($collectionName, $arr)

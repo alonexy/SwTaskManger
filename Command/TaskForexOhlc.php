@@ -105,14 +105,14 @@ class TaskForexOhlc extends Command
 
         $pool->on(
             "WorkerStart", function ($pool, $workerId) {
-            echo "Worker#{$workerId} is started\n";
+//            echo "Worker#{$workerId} is started\n";
             $ForexOhlc = new ForexOhlc();
             $ForexOhlc->Run();
         });
 
         $pool->on(
             "WorkerStop", function ($pool, $workerId) {
-            echo "Worker#{$workerId} is stopped\n";
+//            echo "Worker#{$workerId} is stopped\n";
         });
         if ($daemonize) {
             Process::daemon(true, false);

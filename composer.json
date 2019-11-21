@@ -12,7 +12,10 @@
         "monolog/monolog": "^1.25",
         "nesbot/carbon": "^2.26",
         "vlucas/phpdotenv": "^2.4",
-        "mongodb/mongodb": "^1.5"
+        "mongodb/mongodb": "^1.5",
+        "sl4mmer/phpcent": "^3.0"
+    },
+    "require-dev":{
     },
     "autoload": {
         "psr-4": {
